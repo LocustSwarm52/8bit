@@ -1,0 +1,3 @@
+LDA 0x30: Accumulator = 0x05
+Accumulator = 0x05
+HLT: Halt execution
