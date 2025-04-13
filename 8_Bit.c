@@ -14,7 +14,6 @@
 #define SUB 0x06  // Subtract B from accumulator
 #define JMP 0x07  // Jump to address
 #define JZ  0x08  // Jump if zero
-#define PRINT 0x09 // Print accumulator
 #define HLT 0xFF  // Halt execution
 
 typedef struct {
@@ -89,11 +88,6 @@ void execute_instruction(Computer *c, FILE *file) {
             }
             break;
             
-        case PRINT:
-            fprintf(file, "Accumulator = 0x%02X\n", c->accumulator);
-            c->program_counter++;  // PRINT is a single-byte instruction
-            break;
-            
         case HLT:
             c->running = 0;
             fprintf(file, "HLT: Halt execution\n");
@@ -122,10 +116,9 @@ int main() {
         return 1;
     }
     
-    // Example program:
+    // Example program (no PRINT):
     uint8_t program[] = {
-        LDA, 0x30,   // LDA with address 0x30 (fib0)
-        PRINT, // PRINT (prints value of accumulator)
+        LDA, 0x30,
         HLT,
     };
     
