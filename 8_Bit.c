@@ -5,7 +5,6 @@
 #define MEMORY_SIZE 256
 #define STACK_SIZE 16
 
-// Instruction set
 #define LDA 0x01  // Load accumulator from memory
 #define STA 0x02  // Store accumulator to memory
 #define LDB 0x03  // Load B register from memory
@@ -14,7 +13,7 @@
 #define SUB 0x06  // Subtract B from accumulator
 #define JMP 0x07  // Jump to address
 #define JZ  0x08  // Jump if zero
-#define HLT 0xFF  // Halt execution
+#define HLT 0xFF  // HALT
 
 typedef struct {
     uint8_t memory[MEMORY_SIZE];
@@ -37,99 +36,93 @@ void init_computer(Computer *c) {
     c->running = 1;
 }
 
-void execute_instruction(Computer *c, FILE *file) {
+void execute_instruction(Computer *c) {
     uint8_t opcode = c->memory[c->program_counter];
     uint8_t operand = c->memory[c->program_counter + 1];
     
     switch(opcode) {
         case LDA:
-            c->accumulator = c->memory[operand];
-            c->program_counter += 2;
-            fprintf(file, "LDA 0x%02X: Accumulator = 0x%02X\n", operand, c->accumulator);
+            c->accumulator = c->memory[operand + 0x80];  // Data area starts at 0x80
+            c->program_counter += 2; // LDA is a 2-byte instruction
             break;
             
         case STA:
-            c->memory[operand] = c->accumulator;
-            c->program_counter += 2;
-            fprintf(file, "STA 0x%02X: Memory[0x%02X] = 0x%02X\n", operand, operand, c->accumulator);
+            c->memory[operand + 0x80] = c->accumulator; // Store in data area
+            c->program_counter += 2; // STA is a 2-byte instruction
             break;
             
         case LDB:
-            c->b_register = c->memory[operand];
-            c->program_counter += 2;
-            fprintf(file, "LDB 0x%02X: B register = 0x%02X\n", operand, c->b_register);
+            c->b_register = c->memory[operand + 0x80];  // Data area starts at 0x80
+            c->program_counter += 2; // LDB is a 2-byte instruction
             break;
             
         case STB:
-            c->memory[operand] = c->b_register;
-            c->program_counter += 2;
-            fprintf(file, "STB 0x%02X: Memory[0x%02X] = 0x%02X\n", operand, operand, c->b_register);
+            c->memory[operand + 0x80] = c->b_register; // Store in data area
+            c->program_counter += 2; // STB is a 2-byte instruction
             break;
             
         case ADD:
             c->accumulator += c->b_register;
             c->zero_flag = (c->accumulator == 0);
             c->program_counter++;  // ADD is a single-byte instruction
-            fprintf(file, "ADD: Accumulator = 0x%02X\n", c->accumulator);
             break;
             
         case JMP:
-            c->program_counter = operand;
-            fprintf(file, "JMP to 0x%02X\n", operand);
+            c->program_counter = operand; // JMP is a 2-byte instruction
             break;
             
         case JZ:
             if(c->zero_flag) {
                 c->program_counter = operand;
-                fprintf(file, "JZ: Jump to 0x%02X (zero flag set)\n", operand);
             } else {
                 c->program_counter += 2;
-                fprintf(file, "JZ: No jump (zero flag not set)\n");
             }
             break;
             
         case HLT:
             c->running = 0;
-            fprintf(file, "HLT: Halt execution\n");
             break;
             
         default:
-            fprintf(file, "Unknown opcode: 0x%02X\n", opcode);
-            c->running = 0;
+            c->running = 0;  // Unknown opcode
     }
 }
 
-void run_computer(Computer *c, FILE *file) {
+void run_computer(Computer *c) {
     while(c->running) {
-        execute_instruction(c, file);
+        execute_instruction(c);
     }
 }
 
 int main() {
     Computer computer;
     init_computer(&computer);
-    
-    // Open the file for writing
-    FILE *file = fopen("output.txt", "w");
-    if (file == NULL) {
-        printf("Error opening file!\n");
-        return 1;
-    }
-    
-    // Example program (no PRINT):
-    uint8_t program[] = {
-        LDA, 0x30,
-        HLT,
-    };
-    
-    memcpy(computer.memory, program, sizeof(program));
-    
-    computer.memory[0x30] = 0x05;  // Set value in memory[0x30]
-    
-    // Run the computer and write results to the file
-    run_computer(&computer, file);
 
-    fclose(file);
+    // Setup memory: Program instructions in 0x00 - 0x7F, data in 0x80 - 0xFF
+    uint8_t program[] = {
+        LDA, 0x00,   // LDA from address 0x80
+        ADD, 0x01,   // ADD from address 0x81
+        STA, 0x02,   // STA to address 0x82
+        HLT           // Halt execution
+    };
+
+    uint8_t data[] = {
+        0x05,   // Data at address 0x80
+        0x03,   // Data at address 0x81
+        0x00    // Data at address 0x82 (will store result here)
+    };
+
+    // Copy program instructions to memory (starting at 0x00)
+    memcpy(computer.memory, program, sizeof(program));
+
+    // Copy data to memory (starting at 0x80)
+    memcpy(&computer.memory[0x80], data, sizeof(data));
+
+    // Run the computer
+    run_computer(&computer);
+
+    // Output the result (you can inspect the result in memory at address 0x82)
+    printf("Result stored at 0x82: 0x%02X\n", computer.memory[0x82]);
 
     return 0;
 }
